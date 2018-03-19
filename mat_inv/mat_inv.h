@@ -4,6 +4,6 @@
 #include <time.h>
 
 #define DATA_T float
-#define MAT_SIZE 512
+#define MAT_SIZE 64 
 
 void gje_inv( DATA_T * a, DATA_T * I ); 
