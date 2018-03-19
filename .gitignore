@@ -1,0 +1,6 @@
+*.gz
+*.s
+labelmap
+*.out
+*.llvm
+*.csv
