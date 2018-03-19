@@ -4,3 +4,4 @@ labelmap
 *.out
 *.llvm
 *.csv
+CACHED_TRACES/
