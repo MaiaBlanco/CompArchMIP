@@ -14,6 +14,6 @@
 #define PARTITION 1
 #define OFFSET_STRIDE (MAT_SIZE*MAT_SIZE/PARTITION)
 #define DATA_T float
-#define MAT_SIZE 64 
+#define MAT_SIZE 16 
 
 void mat_inv( DATA_T * a, DATA_T * I ); 

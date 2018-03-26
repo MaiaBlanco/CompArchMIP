@@ -11,12 +11,12 @@ ${gem5_dir}/build/X86/gem5.opt \
   --l2cache \
   --num-cpus=1 \
   --enable_prefetchers \
-  --mem-size=4GB \
+  --mem-size=8GB \
   --mem-type=DDR3_1600_8x8  \
-  --sys-clock=1GHz \
+  --sys-clock=2GHz \
   --cpu-type=DerivO3CPU \
   --caches \
   --cacheline_size=64 \
   --accel_cfg_file=${bmk_home}/gem5.cfg \
-  -c ${bmk_home}/mat_inv \
+  -c ${bmk_home}/mat_inv-gem5-accel \
   | gzip -c > stdout.gz
