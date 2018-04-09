@@ -4,5 +4,7 @@ labelmap
 *.out
 *.llvm
 *.csv
+*.swp
+*.swo
 CACHED_TRACES/
 spice/
