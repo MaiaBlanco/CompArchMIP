@@ -4,6 +4,11 @@ BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 export WORKLOAD=mat_inv
 
 clean: clean-trace clean-gem5
+	rm labelmap
+
+all-local-dma: dma-trace-binary
+	./${ACCEL_NAME}-instrumented
+	make gem5
 
 all-local: run-trace gem5
 
