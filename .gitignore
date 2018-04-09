@@ -5,3 +5,4 @@ labelmap
 *.llvm
 *.csv
 CACHED_TRACES/
+spice/
