@@ -115,7 +115,7 @@ int main()
   if ( num_errs > 0 )
   {
     fprintf(stderr, "ERROR: test failed with %d errors.\n", num_errs);
-    //return 1;
+    return 1;
   }
   printf("Success!\n");
   // TODO: file input and output for known test cases:  
