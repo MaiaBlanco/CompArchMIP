@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+if [ $# -eq 0 ]
+then
+  bmk_exec=mat_inv-gem5-accel
+else
+  bmk_exec=mat_inv-gem5
+fi
+echo 'Running ${bmk_exec}'
+
 bmk_home=${ALADDIN_HOME}/integration-test/with-cpu/mat_inv
 gem5_dir=${ALADDIN_HOME}/../..
 
@@ -18,5 +26,5 @@ ${gem5_dir}/build/X86/gem5.opt \
   --caches \
   --cacheline_size=64 \
   --accel_cfg_file=${bmk_home}/gem5.cfg \
-  -c ${bmk_home}/mat_inv-gem5-accel \
+  -c ${bmk_home}/${bmk_exec} \
   | gzip -c > stdout.gz

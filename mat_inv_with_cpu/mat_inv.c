@@ -5,13 +5,21 @@ void mat_inv( DATA_T * A, DATA_T * I )
 {
 #ifdef DMA_MODE
   // Note: Need a dmaLoad call for each partition of A and I:
- dmaLoad(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+    dmaLoad(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 //  dmaLoad(&A[0], 1*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
-//  dmaLoad(&I[0], 0*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
+//    dmaLoad(&(I[0]), &(I[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 //  dmaLoad(&I[0], 1*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
 #endif
  int i,j,k;
  DATA_T diag_inv, ref_scale;
+ // Setup I matrix:
+ setup_loop_o: for ( i = 0; i < MAT_SIZE; i++ )
+ {
+  setup_loop_i: for (j = 0; j < MAT_SIZE; j ++)
+  {
+    I[i * MAT_SIZE + j] = (DATA_T)(i==j);
+  }
+ }
  main_loop: for ( i = 0; i < MAT_SIZE; i++ )
  {
   // Normalize the diagonal entry
@@ -37,7 +45,7 @@ void mat_inv( DATA_T * A, DATA_T * I )
  }
 #ifdef DMA_MODE
   dmaStore(I, I, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
-  dmaStore(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  //dmaStore(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 #endif
 }
 
@@ -91,19 +99,23 @@ int main()
   {
     for (int j  = 0; j < MAT_SIZE; j++)
     {
-      printf("%f ", A[i * MAT_SIZE + j]);
-      // Jerry rigged near-identity checker:
-      if ( ( i == j && abs(A[i*MAT_SIZE+j] - 1) > 0.01 ) || ( abs(A[i*MAT_SIZE + j]) >  0.01 ) )
+      if (MAT_SIZE <=16) printf("%f ", A[i * MAT_SIZE + j]);
+      // near-identity checks:
+      if ( i==j && !almost_equal(A[i * MAT_SIZE + j], (DATA_T)1.0) )
+      {
+        num_errs ++;
+      }
+      else if ( i != j && !almost_equal(A[i * MAT_SIZE + j], (DATA_T)0.0) )
       {
         num_errs ++;
       }
     }
-    printf("\n");
+    if (MAT_SIZE <= 16) printf("\n");
   }
   if ( num_errs > 0 )
   {
     fprintf(stderr, "ERROR: test failed with %d errors.\n", num_errs);
-    //return 1;
+    return 1;
   }
   printf("Success!\n");
   // TODO: file input and output for known test cases:  
@@ -111,4 +123,14 @@ int main()
   //output = fopen("output.data", "w");
   //...
   return 0;
+}
+
+
+// Implements near-equality check for DATA_T, which for this project is either
+// float or double
+// TODO: Check for better/safer ways to compare floats:
+// https://bitbashing.io/comparing-floats.html
+bool almost_equal(DATA_T d, DATA_T target)
+{
+  return abs(d - target) < FLT_EPSILON;
 }
