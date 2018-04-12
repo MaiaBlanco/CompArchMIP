@@ -45,7 +45,7 @@ void mat_inv( DATA_T * A, DATA_T * I )
  }
 #ifdef DMA_MODE
   dmaStore(I, I, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
-  //dmaStore(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  dmaStore(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 #endif
 }
 
