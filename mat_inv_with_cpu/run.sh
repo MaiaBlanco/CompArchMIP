@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 
-if [ $# -eq 0 ]
-then
-  bmk_exec=mat_inv-gem5-accel
-else
-  bmk_exec=mat_inv-gem5
-fi
-echo 'Running ${bmk_exec}'
+bmk_exec=mat_inv-gem5-accel
+echo Running $bmk_exec
 
 bmk_home=${ALADDIN_HOME}/integration-test/with-cpu/mat_inv
 gem5_dir=${ALADDIN_HOME}/../..
