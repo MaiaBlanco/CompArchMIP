@@ -1,11 +1,15 @@
 ACCEL_NAME = mat_inv
 SRCS = mat_inv.c
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
-export WORKLOAD=mat_inv
+export WORKLOAD=${ACCEL_NAME}
 
 clean: clean-trace clean-gem5
-	rm ${ACCEL_NAME}-test
-	//rm labelmap
+	rm -f ${ACCEL_NAME}-test
+	rm -f labelmap
+	rm -rf outputs
+	rm -f out.csv
+	rm -f *.out
+	rm -f stdout.gz
 
 all-local-dma: dma-trace-binary
 	./${ACCEL_NAME}-instrumented
