@@ -38,7 +38,7 @@ SIZEOF_DATA_T=4
 ############################################
 param_ranges = { 
 'mat_size' : [32],
-'cycle_time' : [4, 10],
+'cycle_time' : [2, 10],
 
 #############################
 # Loop unroll parameters:
@@ -55,7 +55,7 @@ param_ranges = {
 },
 
 
-'memory_type' : ['cache'], # cache or spad
+'memory_type' : ['spad'], # cache or spad
 'arrays' : [['A','I']],
 #############################
 # Parameters for cache-based accelerator:
@@ -82,10 +82,10 @@ param_ranges = {
     'ready_mode' : [0],
     # Right now block is (very!) broken, so just use cyclic
     'partition' : ['cyclic'],
-    'factors' : [1,2,4,8,16,32],
-    'spad_ports' : [2**i for i in range(0, 4)],
+    'factors' : [1,8,16],
+    'spad_ports' : [1,2],
     'pipelined_dma' : ['True'],
-    'dma_chunk_size' : [16,32,64,128,256]
+    'dma_chunk_size' : [64,128,256]
 }
 }
 # End of sweepable params dictionary

@@ -65,8 +65,9 @@ def make_aladdin_cfg(params, loop_labels, path):
 
         # Misc params:
         acfg.write("pipelining,0\n")
-        for k in ['cycle_time']:
-            acfg.write('{},{}\n'.format(k,params[k]))
+        for k in ['cycle_time', 'ready_mode']:
+            if k in params:
+                acfg.write('{},{}\n'.format(k,params[k]))
 
         # Cache and spad params:
         for array in params['arrays']:
@@ -79,13 +80,11 @@ def make_aladdin_cfg(params, loop_labels, path):
                     sw.SIZEOF_DATA_T))
 
             elif params['memory_type'] == 'spad':
-                for k in ['ready_mode']:
-                    acfg.write('{},{}\n'.format(k,params[k]))
-
                 part_type = params['partition']
                 factor = params['factors']
-                acfg.write('partition,{},{},{},{}\n'.format(\
-                    part_type, array, array_size, sw.SIZEOF_DATA_T))
+                acfg.write('partition,{},{},{},{},{}\n'.format(\
+                    part_type, array, array_size, \
+                    sw.SIZEOF_DATA_T, factor))
 
             else:
                 raise Exception("Invalid memory type: ", \
@@ -110,8 +109,11 @@ def make_run_script(params, path):
     # total hack (see sweepables.py), but should work:
     fname = path+'run.sh'
     with open(fname, 'w') as run:
-        run.write(sw.RUN_TEMPLATE.format(path, \
-            params['cache_line_sz']))
+        if 'cache_line_sz' in params:
+            run.write(sw.RUN_TEMPLATE.format(path, \
+                params['cache_line_sz']))
+        else: 
+            run.write(sw.RUN_TEMPLATE.format(path, 64))
     os.chmod(fname, 0777)
 
     print("Wrote ",fname,'\n')
@@ -155,12 +157,15 @@ def main():
     keys, values = zip(*param_sets.items())
     exp_num = 0
     last_mat_size = None
+    last_trace_path = None
     experiments = []
     for v in itertools.product(*values):
         experiment = dict(zip(keys, v))
         # run the experiment in its own directory:
         os.mkdir(str(exp_num))
 
+        exp_path = './'+str(exp_num)+'/'
+        
         # Regenerate the trace if mat_size has changed:
         if last_mat_size != experiment['mat_size']:
             # Update header:
@@ -171,12 +176,18 @@ def main():
                 os.system("make all-local")
             elif experiment['memory_type'] == 'spad':
                 os.system("make all-local-dma")
-
-        exp_path = './'+str(exp_num)+'/'
-
-        # copy latest trace to experiment directory
-        os.system("cp dynamic_trace.gz {}".format(exp_path))
-        # copy gem5 accel executable to experiment directory
+            last_trace_path = exp_path
+            # Copy trace this time, but hardlink in future runs with the same mat size
+            # to reduce disk space usage.
+            os.system("cp dynamic_trace.gz {}".format(exp_path))
+        
+        else:
+            # link latest trace to experiment directory
+            os.link(last_trace_path+"dynamic_trace.gz", exp_path+"dynamic_trace.gz")
+        
+        
+        # copy gem5 accel executable to experiment directory (this is inexpensive
+        # in terms of disk space, so no need to create a hard link)
         os.system("cp {}-gem5-accel {}".format(sw.ACCEL_NAME, exp_path))
 
         # create aladdin cfg in experiment folder:
@@ -192,8 +203,11 @@ def main():
         experiments.append(experiment)
         exp_num += 1
         last_mat_size = experiment['mat_size']
-
+    
     print("Generated ",exp_num," different accelerators from parameter space.") 
+    with open('cleanup.sh','w') as clean_file:
+        clean_file.write("rm -r {{0..{}}}\n".format(exp_num-1))
+    os.chmod('cleanup.sh', 0777)
     # Done creating experiments
 
     # if RUN_EXPERIMENTS:
