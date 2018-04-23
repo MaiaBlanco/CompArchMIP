@@ -16,17 +16,21 @@ RUN_EXPERIMENTS=True
 
 #this method parses aladdin summary to a dict.
 def get_summary(experiment_path):
-    F = open(experiment_path+"outputs/mat_inv-gem5-accel_summary",'r')
-    data = F.readlines()
-    F.close()
-    line_num = 0
-    fields = {}
-    for line in data:
-        if ':' in line:
-            value = line.split(':')
-            stat = value[1].strip().split()
-            fields[value[0]] = stat[0].strip()
-    return fields
+    try:
+        F = open(experiment_path+"outputs/mat_inv-gem5-accel_summary",'r')
+        data = F.readlines()
+        F.close()
+        line_num = 0
+        fields = {}
+        for line in data:
+            if ':' in line:
+                value = line.split(':')
+                stat = value[1].strip().split()
+                fields[value[0]] = stat[0].strip()
+        return fields
+    except:
+        print("Cacti params not valid");
+        return {}
 
 
 #Updates the filename given a dictionary of [key to change, value]
@@ -230,7 +234,8 @@ def main():
         results = [0]*len(experiments)
         for i in range(len(experiments)):
             exp_path = './'+str(i)+'/'
-            results[i] = get_summary(exp_path)
+            res = get_summary(exp_path)
+            results[i] = res
             print("Added experiment {} to record.".format(i))
         
         # Create dataframe of results and join with previous dataframe
