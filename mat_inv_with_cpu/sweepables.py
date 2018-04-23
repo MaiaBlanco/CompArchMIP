@@ -37,40 +37,42 @@ SIZEOF_DATA_T=4
 # Sweepable parameters:
 ############################################
 param_ranges = { 
-'mat_size' : [32],
-'cycle_time' : [2, 10],
+'mat_size' : [16], #[16, 32, 64, 100],
+'cycle_time' : [10],
 
 #############################
 # Loop unroll parameters:
 'unrolling': {
-    'unrolling_factor_num' : [1,2,4,8,16,32],
-    'unrolling_factor_sub' : [1,2,4,8,16,32]
+    'unrolling_factor_num' : [16],
+    'unrolling_factor_sub' : [16],
+    'unrolling_factor_row_sub' : [8] # linear
 },
 
 # This dict is used to link unroll parameters together by associating the key in the
 # param_ranges dict (above) to multiple loop labels in the accelerator code.
 'unroll_loop_labels' : {
     'unrolling_factor_num' : ['norm_cols_A', 'norm_cols_I'],
-    'unrolling_factor_sub' : ['sub_cols_A', 'sub_cols_I']
+    'unrolling_factor_sub' : ['sub_cols_A', 'sub_cols_I'],
+    'unrolling_factor_row_sub' : ['sub_rows']
 },
 
 
-'memory_type' : ['spad'], # cache or spad
+'memory_type' : ['cache'], # cache or spad
 'arrays' : [['A','I']],
 #############################
 # Parameters for cache-based accelerator:
 # NOTE: latencies and bandwidths are currently defaults in template gem5.cfg
 'cache_params': {
-    'cache_size' : ['32kB'],
-    'cache_bandwidth' : [4],
+    'cache_size' : ['8kB', '16kB'], #2, 1.5, 1],   ##explore (UDPDATE TO USE DIVISOR) 
+    'cache_bandwidth' : [8],   # number of ports on cache
     'cache_queue_size' : [32],
-    'cache_assoc' : [16],
+    'cache_assoc' : [2],
     'cache_line_sz' : [64],
     # tlb params for cache based system
     'tlb_page_size' : [4096], # in bytes
     'tlb_entries' : [16],
-    'tlb_max_outstanding_walks': [16],
-    'tlb_assoc': [4],
+    'tlb_max_outstanding_walks': [4],
+    'tlb_assoc': [0],
     'load_bandwidth' : [1],  # Number of r/w ports on load queue.
     'store_bandwidth' : [1],  # Number of r/w ports on store queue.
     'tlb_bandwidth' :  [1]  # Number of r/w ports on TLB
@@ -79,13 +81,13 @@ param_ranges = {
 #########################
 # parameters for scratchpad/DMA accelerator:
 'spad_params' : {
-    'ready_mode' : [0],
+    'ready_mode' : [1],
     # Right now block is (very!) broken, so just use cyclic
     'partition' : ['cyclic'],
-    'factors' : [1,8,16],
-    'spad_ports' : [1,2],
+    'factors' : [16,32],
+    'spad_ports' : [4,16],
     'pipelined_dma' : ['True'],
-    'dma_chunk_size' : [64,128,256]
+    'dma_chunk_size' : [256]
 }
 }
 # End of sweepable params dictionary

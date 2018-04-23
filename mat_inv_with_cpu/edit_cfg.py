@@ -4,35 +4,29 @@ from os import fsync
 import subprocess
 import csv
 import sweepables as sw
+import cacti_writer as cw
 import itertools
+import pandas as pd
+
+RUN_EXPERIMENTS=True
 
 # Implementation for generating param sweeps and config files below, 
 # as well as processing results into summary csv.
 
-#this method writes the summary to a csv. Will create a csv if needed
-def write_summary(vals):
-    F = open("outputs/mat_inv-gem5-accel_summary",'r')
-    data = F.readlines()
 
+#this method parses aladdin summary to a dict.
+def get_summary(experiment_path):
+    F = open(experiment_path+"outputs/mat_inv-gem5-accel_summary",'r')
+    data = F.readlines()
+    F.close()
     line_num = 0
-    fields = []
+    fields = {}
     for line in data:
-        line_num+=1
         if ':' in line:
             value = line.split(':')
-            stat = value[1].split()
-            fields.append(stat[0])
-            print(stat)
-
-    F.close()
-
-    for val in vals:
-        fields.append(val)
-
-    with open(r'summary.csv', 'a') as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
-    f.close()   
+            stat = value[1].strip().split()
+            fields[value[0]] = stat[0].strip()
+    return fields
 
 
 #Updates the filename given a dictionary of [key to change, value]
@@ -192,8 +186,20 @@ def main():
 
         # create aladdin cfg in experiment folder:
         make_aladdin_cfg(experiment, loop_labels, exp_path)
+        
+        # write cacti config files:
+        cacti_config_files={
+            'cache':exp_path+sw.ACCEL_NAME+"_cacti_cache.cfg",
+            'tlb':exp_path+sw.ACCEL_NAME+"_cacti_tlb.cfg",
+            'queue':exp_path+sw.ACCEL_NAME+"_cacti_queue.cfg"
+        }
+        cw.writeAllCactiConfigs(experiment, cacti_config_files)
 
         # create gem5 cfg in experiment folder:
+        #experiment['cacti_cache_config']=cacti_config_files['cache']
+        #experiment['cacti_tlb_config']=cacti_config_files['tlb']
+        #experiment['cacti_lq_config']=cacti_config_files['queue']
+        #experiment['cacti_sq_config']=cacti_config_files['queue']
         make_gem5_cfg(experiment, exp_path)
 
         # create run.sh script in experiment folder:
@@ -203,18 +209,39 @@ def main():
         experiments.append(experiment)
         exp_num += 1
         last_mat_size = experiment['mat_size']
-    
+   
+    exp_frame = pd.DataFrame(experiments)
+    exp_frame.to_csv('param_sweep_results.csv')
     print("Generated ",exp_num," different accelerators from parameter space.") 
     with open('cleanup.sh','w') as clean_file:
         clean_file.write("rm -r {{0..{}}}\n".format(exp_num-1))
     os.chmod('cleanup.sh', 0777)
     # Done creating experiments
 
-    # if RUN_EXPERIMENTS:
-    #     for i in range(len(experiments)):
-    #         os.chdir()
+    # Run experiments and get summaries into one csv at the end:
+    if RUN_EXPERIMENTS:
+        # Run each experiment (could be parallelized)
+        for i in range(len(experiments)):
+            os.chdir(str(i))
+            os.system('./run.sh')
+            os.chdir("..")
+                
+        # Done running all experiments; write out the results to csv:
+        results = [0]*len(experiments)
+        for i in range(len(experiments)):
+            exp_path = './'+str(i)+'/'
+            results[i] = get_summary(exp_path)
+            print("Added experiment {} to record.".format(i))
+        
+        # Create dataframe of results and join with previous dataframe
+        # of experiment parameters:
+        print("Writing experiment records to csv.")
+        results_df = pd.DataFrame(results)
+        final_df = pd.merge(exp_frame, results_df, left_index=True, right_index=True)
+        # Write out to the csv file:
+        final_df.to_csv('param_sweep_results.csv')
 
-    # Done running experiments
+        # Done writing results
 
 
 if __name__ == "__main__":
