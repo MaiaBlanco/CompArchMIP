@@ -112,6 +112,7 @@ def make_run_script(params, path):
     with open(fname, 'w') as run:
         run.write(sw.RUN_TEMPLATE.format(path, \
             params['cache_line_sz']))
+    os.chmod(fname, 0777)
 
     print("Wrote ",fname,'\n')
 
@@ -165,11 +166,11 @@ def main():
             # Update header:
             update_mat_size(experiment['mat_size'])
             # generate new trace:
-            # os.system("make clean")
-            # if experiment['memory_type'] == 'cache':
-            #     os.system("make all-local")
-            # elif experiment['memory_type'] == 'spad':
-            #     os.system("make all-local-dma")
+            os.system("make clean")
+            if experiment['memory_type'] == 'cache':
+                os.system("make all-local")
+            elif experiment['memory_type'] == 'spad':
+                os.system("make all-local-dma")
 
         exp_path = './'+str(exp_num)+'/'
 
@@ -190,6 +191,7 @@ def main():
         # TODO: preallocate list for memory efficiency
         experiments.append(experiment)
         exp_num += 1
+        last_mat_size = experiment['mat_size']
 
     print("Generated ",exp_num," different accelerators from parameter space.") 
     # Done creating experiments
