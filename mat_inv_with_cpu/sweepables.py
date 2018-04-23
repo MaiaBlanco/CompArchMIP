@@ -9,13 +9,13 @@ RUN_TEMPLATE=\
 bmk_exec=mat_inv-gem5-accel
 echo Running $bmk_exec
 
-bmk_home=$\{ALADDIN_HOME\}/integration-test/with-cpu/mat_inv/{}
-gem5_dir=$\{ALADDIN_HOME\}/../..
+bmk_home=${{ALADDIN_HOME}}/integration-test/with-cpu/mat_inv/{}
+gem5_dir=${{ALADDIN_HOME}}/../..
 
-$\{gem5_dir\}/build/X86/gem5.opt \
+${{gem5_dir}}/build/X86/gem5.opt \
   --debug-flags=HybridDatapath,Aladdin \
-  --outdir=$\{bmk_home\}/outputs \
-  $\{gem5_dir\}/configs/aladdin/aladdin_se.py \
+  --outdir=${{bmk_home}}/outputs \
+  ${{gem5_dir}}/configs/aladdin/aladdin_se.py \
   --l2cache \
   --num-cpus=1 \
   --enable_prefetchers \
@@ -25,8 +25,8 @@ $\{gem5_dir\}/build/X86/gem5.opt \
   --cpu-type=DerivO3CPU \
   --caches \
   --cacheline_size={} \
-  --accel_cfg_file=$\{bmk_home\}/gem5.cfg \
-  -c $\{bmk_home\}/$\{bmk_exec\} \
+  --accel_cfg_file=${{bmk_home}}/gem5.cfg \
+  -c ${{bmk_home}}/${{bmk_exec}} \
   | gzip -c > stdout.gz
 """
 
@@ -55,8 +55,8 @@ param_ranges = {
 },
 
 
-'memory_type' : 'cache', # cache or spad
-'arrays' : ['A','I'],
+'memory_type' : ['cache'], # cache or spad
+'arrays' : [['A','I']],
 #############################
 # Parameters for cache-based accelerator:
 # NOTE: latencies and bandwidths are currently defaults in template gem5.cfg
