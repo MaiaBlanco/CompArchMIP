@@ -3,6 +3,11 @@ import os
 from os import fsync
 import subprocess
 import csv
+from sweepables import *
+import itertools
+
+# Implementation for generating param sweeps and config files below, 
+# as well as processing results into summary csv.
 
 #this method writes the summary to a csv. Will create a csv if needed
 def write_summary(vals):
@@ -31,86 +36,148 @@ def write_summary(vals):
 
 
 #Updates the filename given a dictionary of [key to change, value]
-def updating(filename,dico):
-
-
-    F = open(filename,'r')
-    W = open('test','w')
-    output_file = open
+def updating(input_filename,output_filename, dico, sep):
+    if input_filename == output_filename:
+        raise Exception('Must use different filenames!')
+    F = open(input_filename,'r')
+    W = open(output_filename,'w')
     data = F.readlines()
+    F.close()
     keys = dico.keys()
     for line in data:
-
-        key_found=None
         for key in keys:
             if key in line:
-                key_found = key
-        if key_found:
-            newline = key_found+str(dico.get(key_found))
-            dico.pop(key_found)
-            W.write(newline+'\n')
-        else:
-            W.write(line)
-    os.remove(filename)
-    os.rename('test',filename)
+                line = key+sep+str(dico[key])+'\n'
+                break
+        W.write(line)
+    W.close()
+    print("Wrote ",output_filename,'\n')
 
 
+# Note: the next three functions rely on path being a RELATIVE path, with 
+# this script run in the accelerator's base source folder.
+def make_aladdin_cfg(params, loop_labels, path):
+    # create config file with given parameters:
+    with open(path+ACCEL_NAME+".cfg") as acfg:
+
+        # Misc params:
+        acfg.write("pipelining,0\n")
+        for k in ['ready_mode', 'cycle_time']:
+            acfg.write('{},{}\n'.format(k,params[k]))
+
+        # Cache and spad params:
+        for array in params['arrays']:
+            array_size = (params['mat_size']**2)*SIZEOF_DATA
+            # Currently only supporting all cache or all spad, and
+            # assuming that arrays are all the same size.
+            if params['memory_type'] == 'cache':
+                acfg.write('cache,{},{},{}\n'.format(\
+                    array, array_size, \
+                    SIZEOF_DATA))
+
+            elif params['memory_type'] == 'spad':
+                part_type = params['partition']
+                factor = params['factors']
+                acfg.write('partition,{},{},{},{}\n'.format(\
+                    part_type, array, array_size, SIZEOF_DATA))
+
+        # Unroll parameters:
+        for group_label, loop_groups in loop_labels:
+            factor = params[group_label]
+            for loop in loop_groups:
+                acfg.write('unrolling,{},{},{}\n'.format(\
+                    ACCEL_NAME, loop, factor))
+
+
+# Write gem5 config file for specific combination of params
+def make_gem5_cfg(params, path):
+    updating(GEM5_TEMPLATE, path+'gem5.cfg', params, '=')
+
+
+def make_run_script(params, path):
+    # total hack, but should work.
+    with open(path+'run.sh') as run:
+        run.write(RUN_TEMPLATE.format(path.rstrip("/"), \
+            params['cache_line_sz']))
+
+# Write matrix size to header file
+def update_mat_size(mat_size):
+    fname = ACCEL_NAME+'.h'
+    with open(ACCEL_NAME+'_template.h', 'r') as temp:
+        f_out = open(fname, 'w')
+        for line in temp:
+            if '#define MAT_SIZE' in line:
+                line = '#define MAT_SIZE {}\n'.format(mat_size)
+            f_out.write(line)
+        f_out.close()
+        print("Wrote ",fname,'\n')
+
+
+# Create all combinations of parameter sets
 def main():
+    labels = ['mat_size','cycle_time', 'memory_type','arrays']
+    for k in labels:
+        param_sets[k] = param_ranges[k]
 
-    #looping through the matrixs sizes
-    for exp_term in range(4,6):
-        mat_size = 2**exp_term
-        #mat_size = 32
-        
-        #looping through cache sizes
-        cache_sizes = ['32kB']
-        for cache_size in cache_sizes:
-            
-            #looping through cache associativing
-            for cache_assoc in range(4,5):
+    param_sets.update(param_ranges['unrolling'])
 
-                #looping through cache line sizes
-                for cache_line_size in range(63,64):
+    loop_labels = param_ranges['unroll_loop_labels']
 
-                    #looping through tlb page sizes
-                    tlb_page_sizes = range(12,13)
-                    for tlb_page_size_factor in tlb_page_sizes:
-                        tlb_page_size = 2**tlb_page_size_factor
+    # Get relevant parameters for the selected memory type:
+    if param_ranges['memory_type'] == 'spad':
+            param_sets.update(param_ranges['spad_params'])
+    elif param_ranges['memory_type'] == 'cache':
+        param_sets.update(param_ranges['cache_params'])
 
-                        #looping through unrolling_factor_num
-                        for unrolling_factor_num in range(15,16):
+    # Permutations:
+    keys, values = zip(*param_sets.items())
+    exp_num = 0
+    last_mat_size = None
+    experiments = []
+    for v in itertools.product(*values):
+        experiment = dict(zip(keys, v))
+        # run the experiment in its own directory:
+        os.mkdir(str(exp_num))
 
-                            #looping through unrolling_factor_sub
-                            for unrolling_factor_sub in range(15,16):
+        # Regenerate the trace if mat_size has changed:
+        if last_mat_size != experiment['mat_size']:
+            # Update header:
+            update_mat_size()
+            # generate new trace:
+            os.system("make clean")
+            if experiment['memory_type'] == 'cache':
+                os.system("make all-local")
+            elif experiment['memory_type'] == 'spad':
+                os.system("make all-local-dma")
 
-                        #unrolling_factor_num = 8
-                        #unrolling_factor_sub =8
-                                vars = ['unrolling,mat_inv,norm_cols,','unrolling,mat_inv,sub_cols,']
-                                new_val = [str(unrolling_factor_num),str(unrolling_factor_sub)]
-                                what_to_change = dict(zip(vars,new_val))
-                                updating('mat_inv.cfg',what_to_change)
-                                
-                                vars_gem5 =['cache_line_sz =','cache_assoc =', 'cache_size =', 'tlb_page_size =']
-                                new_val_gem5 =[str(cache_line_size), str(cache_assoc), cache_size, str(tlb_page_size)]
-                                print('gem5',vars_gem5,  new_val_gem5)
-                                what_to_change_gem5 = dict(zip(vars_gem5,new_val_gem5))
-                                updating('gem5.cfg',what_to_change_gem5)
+        exp_path = str(exp_num)+'/'
 
-                                vars_h = ['#define MAT_SIZE ']
-                                new_val_h = [str(mat_size)]
-                                change= dict(zip(vars_h,new_val_h))
-                                updating('mat_inv.h',change)
-                                                        
-                                all_values = [unrolling_factor_sub, unrolling_factor_num, cache_line_size, cache_assoc, cache_size,mat_size]
+        # copy latest trace to experiment directory
+        os.system("cp dynamic_trace.gz {}".format(exp_path))
+        # copy gem5 accel executable to experiment directory
+        os.system("cp {}-gem5-accel {}".format(ACCEL_NAME, exp_path))
 
-                                os.system("make clean")
-                                os.system("make all-local-run")
-                                write_summary(all_values)
-                                #os.system("python summary.py")
-        
+        # create aladdin cfg in experiment folder:
+        make_aladdin_cfg(experiment, loop_labels, exp_path)
 
-        #remake trace
-        #os.system("make clean")
+        # create gem5 cfg in experiment folder:
+        make_gem5_cfg(experiment, exp_path)
+
+        # create run.sh script in experiment folder:
+        make_run_script(experiment, exp_path)
+
+        # TODO: preallocate list for memory efficiency
+        experiments.append(experiment)
+        exp_num += 1
+
+    print("Generated ",exp_num," different accelerators from parameter space.") 
+    # Done creating experiments
+
+    # if RUN_EXPERIMENTS:
+    #     for i in range(len(experiments)):
+    #         os.chdir()
+
+    # Done running experiments
 
 
 if __name__ == "__main__":
