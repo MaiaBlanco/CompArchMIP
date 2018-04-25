@@ -4,74 +4,84 @@
 void mat_inv( DATA_T * A, DATA_T * I )
 {
 #ifdef DMA_MODE
-  // Note: Need a dmaLoad call for each partition of A and I:
- dmaLoad(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
-//  dmaLoad(&A[0], 1*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
-//  dmaLoad(&I[0], 0*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
-//  dmaLoad(&I[0], 1*OFFSET_STRIDE*sizeof(DATA_T), PAGE_SIZE);
+  // dmaload takes destination address, host source address, and size in bytes
+  dmaLoad(&(A[0]), &(A[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  dmaLoad(&(I[0]), &(I[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 #endif
- int i,j,k;
  DATA_T diag_inv, ref_scale;
- main_loop: for ( i = 0; i < MAT_SIZE; i++ )
+ main_loop: for ( int i = 0; i < MAT_SIZE; i++ )
  {
   // Normalize the diagonal entry
   diag_inv = 1/A[ i*MAT_SIZE + i ];
+  //A[ i*MAT_SIZE + i ] = (DATA_T)1.0;
 
   // Iterate over columns and apply the diagonal norm factor:
-  norm_cols: for ( j = 0; j < MAT_SIZE; j++)
+  norm_cols_A: for ( int j = 0; j < MAT_SIZE; j++)
+  {
+    A[ i*MAT_SIZE + j] *= diag_inv;
+  }
+  norm_cols_I: for ( int j = 0; j < i; j++)
   {
     I[ i*MAT_SIZE + j ] *= diag_inv;
-    A[ i*MAT_SIZE + j ] *= diag_inv;
   }
+ 
   // Subtract current row from all other rows to cancel the leading entries
-  sub_rows: for ( k = 0; k < MAT_SIZE; k++ )
+  sub_rows: for ( int k = 0; k < MAT_SIZE; k++ )
   {
     if ( k == i ) continue;
     ref_scale = A[ k*MAT_SIZE + i ];
-    sub_cols: for (j = 0; j < MAT_SIZE; j++ )
+    sub_cols_A: for ( int j = 0; j < MAT_SIZE; j++ )
     {
       A[ k*MAT_SIZE + j ] -= ref_scale * A[ i*MAT_SIZE + j ];
+    }
+    sub_cols_B: for (int j = 0; j < MAT_SIZE; j++ )
+    {
       I[ k*MAT_SIZE + j ] -= ref_scale * I[ i*MAT_SIZE + j ];
     }
   }
  }
 #ifdef DMA_MODE
-  dmaStore(I, I, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
-  dmaStore(A, A, MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  // dmastore (v3) takes destination host address, source, and size in bytes.
+//  dmaStore(&(A[0]), &(A[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  // Note for real application only need to return the final inverse.
+  dmaStore(&(I[0]), &(I[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 #endif
 }
 
 
 int main()
 {
-  DATA_T * A;
-  DATA_T * I;
-  int i,j, err;
-  err = 0;
-  err |= posix_memalign((void **)&A, CACHELINE_SIZE,
+  DATA_T *A, *I;
+  int i,j, err=0;
+  fprintf(stdout, "FYI, DATA_T is of size %d bytes.\n", (int)sizeof(DATA_T) );
+  err = posix_memalign((void**)&A, CACHELINE_SIZE,
                               MAT_SIZE * MAT_SIZE * sizeof(DATA_T) );
-  err |= posix_memalign((void **)&I, CACHELINE_SIZE, 
+  
+  assert(err == 0 && "Failed to allocate memory for A!");
+  err = posix_memalign((void**)&I, CACHELINE_SIZE, 
                               MAT_SIZE * MAT_SIZE * sizeof(DATA_T) );
-  if ( err != 0 )
-  {
-    fprintf(stderr, "ERROR: could not allocate aligned memory.\n");
-    return 1;
-  }
-  // Todo: replace with code that reads a real test matrix (and solution system)
-  srand(time(NULL));
+
+  assert(err == 0 && "Failed to allocate memory for I!");
   for (i = 0; i < MAT_SIZE; i++)
   {
-    I[ i*MAT_SIZE + i ] = 1;
     for (j = 0; j < MAT_SIZE; j++)
     {
-      A[ i*MAT_SIZE + j ] = rand() * 100;
+      if (i == j) 
+      {
+        A[ i*MAT_SIZE + j ] = (DATA_T)(1+rand()) * 100;
+      }
+      else
+      {
+        A[ i*MAT_SIZE + j ] = (DATA_T)rand() * 100;
+      }
+      I[ i*MAT_SIZE + j] = (DATA_T)(i==j);
     }
   }
 #ifdef GEM5_HARNESS
-  // Map arrays from trace to cpu address space...?
-  mapArrayToAccelerator(INTEGRATION_TEST, "A", A,
+  // Map arrays from trace to cpu address space:
+  mapArrayToAccelerator(INTEGRATION_TEST, "A", &(A[0]),
                         MAT_SIZE * MAT_SIZE * sizeof(DATA_T) );
-  mapArrayToAccelerator(INTEGRATION_TEST, "I", I,
+  mapArrayToAccelerator(INTEGRATION_TEST, "I", &(I[0]),
                         MAT_SIZE * MAT_SIZE * sizeof(DATA_T) );
   // Invoke the accelerator:
   printf("RUNNING MATRIX INVERTER!\n");
@@ -81,34 +91,53 @@ int main()
 //#ifdef GEM5
 //  resetGem5Stats();
 //#endif
-  mat_inv(&A[0], &I[0]);
+  mat_inv(A, I);
 //#ifdef GEM5
 //  dumpGem5Stats("mat_inv");
-//#endif
 #endif
+#ifdef TEST
   int num_errs = 0;
+  // Check A
   for (int i = 0; i < MAT_SIZE; i++)
   {
     for (int j  = 0; j < MAT_SIZE; j++)
     {
-      printf("%f ", A[i * MAT_SIZE + j]);
-      // Jerry rigged near-identity checker:
-      if ( ( i == j && abs(A[i*MAT_SIZE+j] - 1) > 0.01 ) || ( abs(A[i*MAT_SIZE + j]) >  0.01 ) )
+      if (MAT_SIZE <=32) printf("%f ", A[i * MAT_SIZE + j]);
+      // near-identity checks:
+      if ( i==j && !almost_equal(A[i * MAT_SIZE + j], (DATA_T)1.0) )
+      {
+        num_errs ++;
+      }
+      else if ( i != j && !almost_equal(A[i * MAT_SIZE + j], (DATA_T)0.0) )
       {
         num_errs ++;
       }
     }
-    printf("\n");
+    if (MAT_SIZE <= 32) printf("\n");
   }
+  // Report number of errors:
   if ( num_errs > 0 )
   {
     fprintf(stderr, "ERROR: test failed with %d errors.\n", num_errs);
-    //return 1;
+    return 1;
   }
   printf("Success!\n");
-  // TODO: file input and output for known test cases:  
-  //FILE *output;
-  //output = fopen("output.data", "w");
-  //...
+#endif
   return 0;
+}
+
+
+// Implements near-equality check for DATA_T, which for this project is either
+// float or double
+// TODO: Check for better/safer ways to compare floats:
+// https://bitbashing.io/comparing-floats.html
+bool almost_equal(DATA_T d, DATA_T target)
+{
+#define SMALL_FLOAT 0.000001
+  if ( fabs(d - target) < SMALL_FLOAT)
+  {
+    return true;
+  }
+  fprintf(stderr, "%f != %f\n", d, target);
+  return false;
 }

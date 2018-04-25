@@ -1,0 +1,10 @@
+This directory and its files contained should be placed in gem5-aladdin/src/aladdin/integration-test/with-cpu/
+Then, the accelerator can be built (with CPU simulation) by using the following commands:
+make all-local(-dma)
+  This will perform the LLVM tracing step (which may take a while) and the gem5 make steps.
+  The gem5 target calls the common gem5 Makefile to run gem5-cpu and gem5-accel, which build
+  the standalone CPU version of the program (no accelerator) and the accelerated version.
+  This results in two new executables.
+  Adding '-dma' to the make target is important for an accelerator that uses gem5-aladdin DMA calls.
+
+Finally, the simulation can be run using ./run.sh, which calls the HW-accelerated gem5 exec. This script defaults to the accelerator executable, but if you add any argument after the name of the executable it will execute the CPU-only simulation.
