@@ -13,10 +13,10 @@ void mat_inv( DATA_T * A, DATA_T * I )
  {
   // Normalize the diagonal entry
   diag_inv = 1/A[ i*MAT_SIZE + i ];
-  A[ i*MAT_SIZE + i ] = (DATA_T)1.0;
+  //A[ i*MAT_SIZE + i ] = (DATA_T)1.0;
 
   // Iterate over columns and apply the diagonal norm factor:
-  norm_cols_A: for ( int j = i+1; j < MAT_SIZE; j++)
+  norm_cols_A: for ( int j = 0; j < MAT_SIZE; j++)
   {
     A[ i*MAT_SIZE + j] *= diag_inv;
   }
@@ -24,13 +24,13 @@ void mat_inv( DATA_T * A, DATA_T * I )
   {
     I[ i*MAT_SIZE + j ] *= diag_inv;
   }
-  
+ 
   // Subtract current row from all other rows to cancel the leading entries
   sub_rows: for ( int k = 0; k < MAT_SIZE; k++ )
   {
     if ( k == i ) continue;
     ref_scale = A[ k*MAT_SIZE + i ];
-    sub_cols_A: for ( int j = i; j < MAT_SIZE; j++ )
+    sub_cols_A: for ( int j = 0; j < MAT_SIZE; j++ )
     {
       A[ k*MAT_SIZE + j ] -= ref_scale * A[ i*MAT_SIZE + j ];
     }
@@ -42,7 +42,8 @@ void mat_inv( DATA_T * A, DATA_T * I )
  }
 #ifdef DMA_MODE
   // dmastore (v3) takes destination host address, source, and size in bytes.
-  dmaStore(&(A[0]), &(A[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+//  dmaStore(&(A[0]), &(A[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
+  // Note for real application only need to return the final inverse.
   dmaStore(&(I[0]), &(I[0]), MAT_SIZE*MAT_SIZE*sizeof(DATA_T));
 #endif
 }
@@ -61,13 +62,18 @@ int main()
                               MAT_SIZE * MAT_SIZE * sizeof(DATA_T) );
 
   assert(err == 0 && "Failed to allocate memory for I!");
-  // Todo: replace with code that reads a real test matrix (and solution system)
-  //srand(time(NULL));
   for (i = 0; i < MAT_SIZE; i++)
   {
     for (j = 0; j < MAT_SIZE; j++)
     {
-      A[ i*MAT_SIZE + j ] = (DATA_T)rand() * 100;
+      if (i == j) 
+      {
+        A[ i*MAT_SIZE + j ] = (DATA_T)(1+rand()) * 100;
+      }
+      else
+      {
+        A[ i*MAT_SIZE + j ] = (DATA_T)rand() * 100;
+      }
       I[ i*MAT_SIZE + j] = (DATA_T)(i==j);
     }
   }
@@ -89,7 +95,6 @@ int main()
 //#ifdef GEM5
 //  dumpGem5Stats("mat_inv");
 //#endif
-#endif
   int num_errs = 0;
   // Check A
   for (int i = 0; i < MAT_SIZE; i++)
@@ -116,10 +121,7 @@ int main()
     return 1;
   }
   printf("Success!\n");
-  // TODO: file input and output for known test cases:  
-  //FILE *output;
-  //output = fopen("output.data", "w");
-  //...
+#endif
   return 0;
 }
 
