@@ -37,40 +37,38 @@ SIZEOF_DATA_T=4
 # Sweepable parameters:
 ############################################
 param_ranges = { 
-'mat_size' : [16], #[16, 32, 64, 100],
-'cycle_time' : [10],
+'mat_size' : [64], #[16, 32, 64, 100],
+'cycle_time' : [5, 10],
 
 #############################
 # Loop unroll parameters:
 'unrolling': {
-    'unrolling_factor_num' : [16],
-    'unrolling_factor_sub' : [16],
-    'unrolling_factor_row_sub' : [8] # linear
+    'unrolling_factor_cols' : [8,16,32],
+    'unrolling_factor_row_sub' : [1,8] # linear
 },
 
 # This dict is used to link unroll parameters together by associating the key in the
 # param_ranges dict (above) to multiple loop labels in the accelerator code.
 'unroll_loop_labels' : {
-    'unrolling_factor_num' : ['norm_cols_A', 'norm_cols_I'],
-    'unrolling_factor_sub' : ['sub_cols_A', 'sub_cols_I'],
+    'unrolling_factor_cols' : ['norm_cols_A', 'norm_cols_I', 'sub_cols_A', 'sub_cols_I'],
     'unrolling_factor_row_sub' : ['sub_rows']
 },
 
 
-'memory_type' : ['cache'], # cache or spad
+'memory_type' : ['spad'], # cache or spad
 'arrays' : [['A','I']],
 #############################
 # Parameters for cache-based accelerator:
 # NOTE: latencies and bandwidths are currently defaults in template gem5.cfg
 'cache_params': {
-    'cache_size' : ['8kB', '16kB'], #2, 1.5, 1],   ##explore (UDPDATE TO USE DIVISOR) 
-    'cache_bandwidth' : [8],   # number of ports on cache
+    'cache_size' : ['8kB', '16kB', '32kB'], #2, 1.5, 1],   ##explore (UDPDATE TO USE DIVISOR) 
+    'cache_bandwidth' : [4, 16],   # number of ports on cache
     'cache_queue_size' : [32],
-    'cache_assoc' : [2],
+    'cache_assoc' : [1,16],
     'cache_line_sz' : [64],
     # tlb params for cache based system
     'tlb_page_size' : [4096], # in bytes
-    'tlb_entries' : [16],
+    'tlb_entries' : [0],
     'tlb_max_outstanding_walks': [4],
     'tlb_assoc': [0],
     'load_bandwidth' : [1],  # Number of r/w ports on load queue.
@@ -83,7 +81,7 @@ param_ranges = {
 'spad_params' : {
     'ready_mode' : [1],
     # Right now block is (very!) broken, so just use cyclic
-    'partition' : ['cyclic'],
+    'partition' : ['block','cyclic'],
     'factors' : [16,32],
     'spad_ports' : [4,16],
     'pipelined_dma' : ['True'],

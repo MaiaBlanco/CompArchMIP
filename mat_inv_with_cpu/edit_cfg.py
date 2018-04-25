@@ -17,7 +17,7 @@ RUN_EXPERIMENTS=True
 #this method parses aladdin summary to a dict.
 def get_summary(experiment_path):
     try:
-        F = open(experiment_path+"outputs/mat_inv-gem5-accel_summary",'r')
+        F = open(experiment_path+"outputs/{}-gem5-accel_summary".format(sw.ACCEL_NAME),'r')
         data = F.readlines()
         F.close()
         line_num = 0
@@ -69,7 +69,12 @@ def make_aladdin_cfg(params, loop_labels, path):
 
         # Cache and spad params:
         for array in params['arrays']:
-            array_size = (params['mat_size']**2)*sw.SIZEOF_DATA_T
+            # Uppercase means matrix:
+            if array.isupper():
+                array_size = (params['mat_size']**2)*sw.SIZEOF_DATA_T
+            # lowercase means vector:
+            else:
+                array_size = (params['mat_size'])*sw.SIZEOF_DATA_T
             # Currently only supporting all cache or all spad, and
             # assuming that arrays are all the same size.
             if params['memory_type'] == 'cache':
@@ -144,9 +149,15 @@ def main():
 
     # Get relevant parameters for the selected memory type:
     if sw.param_ranges['memory_type'][0] == 'spad':
-            param_sets.update(sw.param_ranges['spad_params'])
+        param_sets.update(sw.param_ranges['spad_params'])
+        # make dummy cache params for cacti to use:
+        keys, values = zip(*sw.param_ranges['cache_params'].items())
+        v = list(itertools.product(*values))[0]
+        dummy_cache_vals = dict(zip(keys, v))
+    
     elif sw.param_ranges['memory_type'][0] == 'cache':
         param_sets.update(sw.param_ranges['cache_params'])
+    
     else:
         raise Exception("Invalid memory type: ", \
             params['memory_type'])
@@ -198,6 +209,10 @@ def main():
             'queue':exp_path+sw.ACCEL_NAME+"_cacti_queue.cfg"
         }
         cw.writeAllCactiConfigs(experiment, cacti_config_files)
+        if experiment['memory_type'] == 'cache':
+            cw.writeAllCactiConfigs(experiment, cacti_config_files)
+        elif experiment['memory_type'] == 'spad':
+            cw.writeAllCactiConfigs(dummy_cache_vals, cacti_config_files)
 
         # create gem5 cfg in experiment folder:
         #experiment['cacti_cache_config']=cacti_config_files['cache']

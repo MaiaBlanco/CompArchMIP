@@ -94,7 +94,8 @@ int main()
   mat_inv(A, I);
 //#ifdef GEM5
 //  dumpGem5Stats("mat_inv");
-//#endif
+#endif
+#ifdef TEST
   int num_errs = 0;
   // Check A
   for (int i = 0; i < MAT_SIZE; i++)
