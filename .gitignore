@@ -5,3 +5,7 @@ labelmap
 *.llvm
 *.csv
 CACHED_TRACES/
+
+# Ignore matrix data files:
+*.mmx
+*.mtx
