@@ -7,4 +7,7 @@ labelmap
 *.swp
 *.swo
 CACHED_TRACES/
+# Ignore matrix data files:
+*.mmx
+*.mtx
 spice/
