@@ -15,7 +15,7 @@
 #define CACHELINE_SIZE 64
 
 #define DATA_T float
-#define MAT_SIZE 16
+#define MAT_SIZE 64
 
 void mat_inv( DATA_T * A, DATA_T * I ); 
 bool almost_equal( DATA_T d, DATA_T target);

@@ -1,15 +1,17 @@
 # Accel name:
-ACCEL_NAME="mat_inv"
+ACCEL_NAME="mat_soln"
+
+EXPERIMENT_NAME="32x32_mat_soln_cache_v2"
 
 #Template cfg files:
 GEM5_TEMPLATE="template_"+"gem5.cfg"
 RUN_TEMPLATE=\
 """#!/usr/bin/env bash
 
-bmk_exec=mat_inv-gem5-accel
+bmk_exec=mat_soln-gem5-accel
 echo Running $bmk_exec
 
-bmk_home=${{ALADDIN_HOME}}/integration-test/with-cpu/mat_inv/{}
+bmk_home=${{ALADDIN_HOME}}/integration-test/with-cpu/mat_soln/{}
 gem5_dir=${{ALADDIN_HOME}}/../..
 
 ${{gem5_dir}}/build/X86/gem5.opt \
@@ -37,26 +39,28 @@ SIZEOF_DATA_T=4
 # Sweepable parameters:
 ############################################
 param_ranges = { 
-'mat_size' : [64], #[16, 32, 64, 100],
+'mat_size' : [32], #[16, 32, 64, 100],
 'cycle_time' : [5, 10],
 
 #############################
 # Loop unroll parameters:
 'unrolling': {
-    'unrolling_factor_cols' : [8,16,32],
-    'unrolling_factor_row_sub' : [1,8] # linear
+    'unrolling_factor_num' : [16,32],
+    'unrolling_factor_row_sub' : [1,16],
+    'setup':[1,8,16]
 },
 
 # This dict is used to link unroll parameters together by associating the key in the
 # param_ranges dict (above) to multiple loop labels in the accelerator code.
 'unroll_loop_labels' : {
-    'unrolling_factor_cols' : ['norm_cols_A', 'norm_cols_I', 'sub_cols_A', 'sub_cols_I'],
-    'unrolling_factor_row_sub' : ['sub_rows']
+    'unrolling_factor_num' : ['norm_cols', 'sub_cols'],
+    'unrolling_factor_row_sub' : ['sub_rows'],
+    'setup' : ['setup_loop']
 },
 
 
-'memory_type' : ['spad'], # cache or spad
-'arrays' : [['A','I']],
+'memory_type' : ['cache'], # cache or spad
+'arrays' : [['A','b','x']],
 #############################
 # Parameters for cache-based accelerator:
 # NOTE: latencies and bandwidths are currently defaults in template gem5.cfg
@@ -64,7 +68,7 @@ param_ranges = {
     'cache_size' : ['8kB', '16kB', '32kB'], #2, 1.5, 1],   ##explore (UDPDATE TO USE DIVISOR) 
     'cache_bandwidth' : [4, 16],   # number of ports on cache
     'cache_queue_size' : [32],
-    'cache_assoc' : [1,16],
+    'cache_assoc' : [2,8],
     'cache_line_sz' : [64],
     # tlb params for cache based system
     'tlb_page_size' : [4096], # in bytes
