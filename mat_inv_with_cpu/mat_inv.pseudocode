@@ -1,0 +1,25 @@
+void mat_inv( DATA_T * A, DATA_T * I )
+{
+#ifdef DMA_MODE
+  dmaLoad(host_A, dev_A)
+  dmaLoad(host_I, dev_I)
+#endif
+ main_loop: for i = 0..MAT_SIZE
+  % Normalize the diagonal entry
+  diag_inv = 1/A[i][i]
+  % Normalize over columns
+  norm_cols: for j = 0..MAT_SIZE
+    A[i][j] *= diag_inv
+    I[i][j] *= diag_inv
+
+  % Cancel leading entries of all other rows
+  sub_rows: for k = 0..MAT_SIZE
+    if ( k == i ) continue
+    ref_scale = A[k][i]
+    sub_cols: for j = 0..MAT_SIZE
+      A[k][j] -= ref_scale * A[i][j]
+      I[k][j] -= ref_scale * I[i][j]
+
+#ifdef DMA_MODE
+  dmaStore(dev_I, host_I)
+#endif
