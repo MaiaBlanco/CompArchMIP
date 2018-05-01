@@ -138,3 +138,4 @@ labels = []
 plot_pareto2d(data1, outputs[::2], hold=True, color='r', label='Cache')
 plot_pareto2d(data2, outputs[::2], hold=False, color='b', label='Spad')
 
+
