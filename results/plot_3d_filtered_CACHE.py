@@ -21,9 +21,10 @@ import numpy as np
 import pandas as pd
 
 
-FILENAME = "smart_64x64_CACHE.csv"
+#FILENAME = "smart_64x64_CACHE.csv"
+FILENAME = "64x64_CACHE_SMART_2.csv"
 # SHEET = 
-X_LABEL = "FU Area"
+X_LABEL = "MEM Area"
 Y_LABEL = "Cycle "
 #Y_LABEL = "Total Area"
 Z_LABEL = "Avg Power"
@@ -50,6 +51,7 @@ z = data.loc[:,Z_LABEL].values
 cache_assoc = data.loc[:,"cache_assoc"].values
 cache_bw = data.loc[:,"cache_bandwidth"].values
 cache_size = data.loc[:,"cache_size"].values
+cache_line = data.loc[:,"cache_line_sz"].values
 unrolling_factor_sub = data.loc[:,"unrolling_factor_sub"].values
 unrolling_factor_num = data.loc[:,'unrolling_factor_norm'].values
 unrolling_factor_row = data.loc[:,'unrolling_factor_row_sub'].values
@@ -59,35 +61,37 @@ speed = data.loc[:,"cycle_time"].values
 for i in range(0,len(x)):
     ass = cache_assoc[i]
     bw = int(cache_bw[i])
- #   cache_sz = cache_size[i]
     #print('BANDWIDTH: ',bw)    
     sub = unrolling_factor_sub[i]
     num = unrolling_factor_num[i]
-    row = unrolling_factor_row[i]
+    row = sub #cache_line[i]
+    #unrolling_factor_row[i]
     cycle_time= speed[i]
     marker = None
-    c_crit = sub
-    #c_crit = int(cache_size[i][:-2])
+    color='w'
+    c_crit = cache_line[i] 
+    sz = int(cache_size[i][:-2])
     
     alphas = 0.6
-    if row == 1:
+    if sz == 8:
         marker = 'o'
-    elif row == 16:
+    elif sz  == 16:
         marker = '^'
-    elif row == 64:
+    elif sz == 32:
         marker = 'x'
-    if c_crit == 1 :
-        color='g'
-    elif c_crit == 8 :
-        color = 'b' 
-    elif c_crit == 16 :
-        color == 'r'
-        #marker = '*'
-    elif c_crit == 32 :
+#    if c_crit == 1 :
+#        color='g'
+#    elif c_crit == 8 :
+#        color = 'b' 
+#    elif c_crit == 16 :
+#        color == 'r'
+#        #marker = '*'
+    if c_crit == 32 :
         color = 'y'
     elif c_crit == 64 :
         color = 'k'
-    ax.scatter(x[i],y[i],z[i],c=color, marker=marker,alpha = alphas, s=150)
+    if sub == 64:
+        ax.scatter(x[i],y[i],z[i],c=color, marker=marker,alpha = alphas, s=150)
 
 
 
